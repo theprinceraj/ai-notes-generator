@@ -1,16 +1,17 @@
 import { createReadStream, mkdirSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import Groq from 'groq-sdk';
-import { config } from './config.js';
-import { run } from './exec.js';
-import { log } from './log.js';
+import { config } from './config.ts';
+import { run } from './exec.ts';
+import { log } from './log.ts';
+import type { TranscriptLine } from './types.ts';
 
-// A transcript is a list of { minute, text }, rendered as "[mm:00] text" lines for Claude.
+// A transcript is a list of { minute, text }, rendered as "[hh:mm:00] text" lines for Claude.
 
 /** Collapses YouTube's rolling auto-captions into de-duplicated text per minute. */
-export function fromVtt(vtt) {
-  const seen = new Set();
-  const byMinute = new Map();
+export function fromVtt(vtt: string): TranscriptLine[] {
+  const seen = new Set<string>();
+  const byMinute = new Map<number, string[]>();
   for (const block of vtt.split(/\r?\n\r?\n/)) {
     const m = block.match(/(\d+):(\d+):([\d.]+) -->/);
     if (!m) continue;
@@ -19,8 +20,7 @@ export function fromVtt(vtt) {
       const line = raw.replace(/<[^>]*>/g, '').trim();
       if (!line || seen.has(line)) continue;
       seen.add(line);
-      if (!byMinute.has(minute)) byMinute.set(minute, []);
-      byMinute.get(minute).push(line);
+      byMinute.set(minute, [...(byMinute.get(minute) ?? []), line]);
     }
   }
   return [...byMinute].map(([minute, lines]) => ({ minute, text: lines.join(' ') }));
@@ -30,7 +30,7 @@ const CHUNK_SECONDS = 25; // short chunks made Whisper drop far less speech in t
 const GROQ_GAP_MS = 3100; // free tier allows 20 requests per minute
 
 /** Transcribes Hindi audio with Groq Whisper, chunk by chunk. */
-export async function fromGroq(audioPath, dir) {
+export async function fromGroq(audioPath: string, dir: string): Promise<TranscriptLine[]> {
   const chunkDir = join(dir, 'chunks');
   mkdirSync(chunkDir, { recursive: true });
   await run(config.bin.ffmpeg, [
@@ -40,15 +40,17 @@ export async function fromGroq(audioPath, dir) {
 
   const groq = new Groq();
   const chunks = readdirSync(chunkDir).filter((f) => f.endsWith('.mp3')).sort();
-  const byMinute = new Map();
+  const byMinute = new Map<number, string[]>();
   for (const [i, file] of chunks.entries()) {
-    const text = (await groq.audio.transcriptions.create({
+    const reply = await groq.audio.transcriptions.create({
       file: createReadStream(join(chunkDir, file)),
       model: 'whisper-large-v3',
       language: 'hi',
       response_format: 'text',
       temperature: 0,
-    })).toString().trim();
+    });
+    // With response_format "text" the SDK returns the plain transcript string.
+    const text = String(reply).trim();
     const minute = Math.floor((i * CHUNK_SECONDS) / 60);
     if (text) byMinute.set(minute, [...(byMinute.get(minute) ?? []), text]);
     if ((i + 1) % 20 === 0) log(`groq: ${i + 1}/${chunks.length} chunks`);
@@ -57,8 +59,10 @@ export async function fromGroq(audioPath, dir) {
   return [...byMinute].map(([minute, parts]) => ({ minute, text: parts.join(' ') }));
 }
 
-export const formatMinute = (minute) =>
-  `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
+const two = (n: number) => String(n).padStart(2, '0');
 
-export const toText = (transcript) =>
+/** Formats a minute offset as hh:mm. */
+export const formatMinute = (minute: number) => `${two(Math.floor(minute / 60))}:${two(minute % 60)}`;
+
+export const toText = (transcript: TranscriptLine[]) =>
   transcript.map(({ minute, text }) => `[${formatMinute(minute)}:00] ${text}`).join('\n');

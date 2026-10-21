@@ -1,20 +1,21 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { ask } from './claude.js';
-import { config } from './config.js';
-import { toText } from './transcript.js';
+import { ask } from './claude.ts';
+import { config } from './config.ts';
+import { toText } from './transcript.ts';
+import type { Language, Part, Sheet, TranscriptLine } from './types.ts';
 
 const SYSTEM = 'You are a meticulous note-maker for Indian competitive-exam students. Follow the instructions in the user message exactly.';
 
-const prompt = (name) => readFileSync(join(config.dirs.prompts, name), 'utf8');
+const prompt = (name: string) => readFileSync(join(config.dirs.prompts, name), 'utf8');
 
-const mmss = (minute) => `${minute}:00`;
+const mmss = (minute: number) => `${minute}:00`;
 
 /** Splits the class into parts of `config.segmentMinutes`, each with its transcript lines and contact sheets. */
-export function segments(transcript, sheets) {
+export function segments(transcript: TranscriptLine[], sheets: Sheet[]): Part[] {
   const size = config.segmentMinutes;
   const lastMinute = Math.max(transcript.at(-1)?.minute ?? 0, Math.ceil((sheets.at(-1)?.end ?? 0) / 60));
-  const parts = [];
+  const parts: Part[] = [];
   for (let start = 0; start <= lastMinute; start += size) {
     const end = start + size;
     const lines = transcript.filter((t) => t.minute >= start && t.minute < end);
@@ -25,14 +26,14 @@ export function segments(transcript, sheets) {
 }
 
 /** Headings (h1/h2 text, without side notes) of fragments written so far. */
-export function headingsOf(fragments) {
+export function headingsOf(fragments: string[]): string[] {
   return fragments.flatMap((html) =>
     [...html.matchAll(/<h[12][^>]*>([\s\S]*?)<\/h[12]>/g)].map((m) =>
       m[1].replace(/<span class="side">[\s\S]*?<\/span>/g, '').replace(/<[^>]+>/g, '').trim()));
 }
 
 /** Writes the Hindi notes for one part of the class. */
-export async function writeHindiNotes(part, index, count, earlierFragments) {
+export async function writeHindiNotes(part: Part, index: number, count: number, earlierFragments: string[]): Promise<string> {
   const covered = headingsOf(earlierFragments);
   const context = [
     `## This part\nPart ${index + 1} of ${count}: video time ${mmss(part.start)} to ${mmss(part.end)} (minutes:seconds).`,
@@ -52,13 +53,15 @@ export async function writeHindiNotes(part, index, count, earlierFragments) {
   return clean(reply);
 }
 
-const LANGUAGE_RULES = {
+type Translation = Exclude<Language, 'hindi'>;
+
+const LANGUAGE_RULES: Record<Translation, string> = {
   english: 'Write clear, simple English suited to exam notes.',
-  hinglish: "Write Hinglish: Hindi written in Roman (Latin) script, mixed with the English words Indian students commonly use, e.g. \"Sabse zyada density wala rajya → Bihar\". Use no Devanagari at all.",
+  hinglish: 'Write Hinglish: Hindi written in Roman (Latin) script, mixed with the English words Indian students commonly use, e.g. "Sabse zyada density wala rajya → Bihar". Use no Devanagari at all.',
 };
 
 /** Translates one Hindi notes fragment into English or Hinglish, keeping its HTML intact. */
-export async function translateNotes(hindiFragment, language) {
+export async function translateNotes(hindiFragment: string, language: Translation): Promise<string> {
   const instructions = prompt('translate.md')
     .replaceAll('{{LANGUAGE}}', language === 'english' ? 'English' : 'Hinglish')
     .replace('{{LANGUAGE_RULES}}', LANGUAGE_RULES[language]);
@@ -66,7 +69,7 @@ export async function translateNotes(hindiFragment, language) {
 }
 
 /** Strips code fences and anything outside the allowed fragment, such as scripts or event handlers. */
-export function clean(html) {
+export function clean(html: string): string {
   return html
     .replace(/^\s*```(?:html)?\s*/i, '')
     .replace(/\s*```\s*$/, '')

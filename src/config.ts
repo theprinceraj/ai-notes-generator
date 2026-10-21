@@ -1,6 +1,7 @@
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
+import type { Language } from './types.ts';
 
 export const ROOT = fileURLToPath(new URL('..', import.meta.url));
 
@@ -41,7 +42,14 @@ export const config = {
   },
 };
 
-export const LANGUAGES = {
+interface LanguageLabels {
+  htmlLang: string;
+  dateLabel: string;
+  pageLabel: string;
+  meta: string;
+}
+
+export const LANGUAGES: Record<Language, LanguageLabels> = {
   hindi: { htmlLang: 'hi', dateLabel: 'दिनांक', pageLabel: 'पेज', meta: 'करंट अफेयर्स · एपिसोड' },
   english: { htmlLang: 'en', dateLabel: 'Date', pageLabel: 'Page', meta: 'Current Affairs · Episode' },
   hinglish: { htmlLang: 'en', dateLabel: 'Date', pageLabel: 'Page', meta: 'Current Affairs · Episode' },

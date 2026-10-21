@@ -5,7 +5,7 @@
 $ErrorActionPreference = 'Stop'
 
 $root = Split-Path -Parent $PSScriptRoot
-$cli = Join-Path $root 'src\cli.js'
+$cli = Join-Path $root 'src\cli.ts'
 
 # Use bun.exe itself: the npm-installed `bun` command is a .cmd wrapper that adds seconds per start.
 $candidates = @(

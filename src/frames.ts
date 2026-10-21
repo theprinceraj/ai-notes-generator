@@ -1,7 +1,8 @@
 import { mkdirSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { config } from './config.js';
-import { run } from './exec.js';
+import { config } from './config.ts';
+import { run } from './exec.ts';
+import type { Sheet } from './types.ts';
 
 export const FRAMES_PER_SHEET = 4;
 
@@ -10,7 +11,7 @@ export const FRAMES_PER_SHEET = 4;
  * stamped with its video time. Sheets keep image count (and Claude usage) low while
  * still showing every slide and whiteboard state.
  */
-export async function makeContactSheets(videoPath, dir) {
+export async function makeContactSheets(videoPath: string, dir: string): Promise<Sheet[]> {
   mkdirSync(dir, { recursive: true });
   // ffmpeg filter syntax needs the drive colon in a Windows font path escaped.
   const font = config.frameFont.replace(/:/g, '\\:');
@@ -24,8 +25,8 @@ export async function makeContactSheets(videoPath, dir) {
   return listSheets(dir);
 }
 
-/** Sheets in order, each with the video second its first frame was taken at. */
-export function listSheets(dir) {
+/** Sheets in order, each with the span of video time its frames cover. */
+export function listSheets(dir: string): Sheet[] {
   const span = config.frameEverySeconds * FRAMES_PER_SHEET;
   return readdirSync(dir)
     .filter((f) => /^s\d+\.jpg$/.test(f))

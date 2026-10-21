@@ -30,7 +30,7 @@ The notes record exactly what the teacher says and shows. Figures are never corr
 | [Claude Code](https://claude.com/claude-code) | Writes and translates the notes, using your Claude subscription | See its install guide, then run `claude` once and log in |
 | [Groq](https://console.groq.com) API key (free) | Backup transcription when YouTube has no captions | Create a key in the Groq console |
 
-Node.js 20+ also works in place of Bun: replace `bun` with `node` in the commands below.
+Node.js 24+ also works in place of Bun, since it runs TypeScript directly: replace `bun` with `node` in the commands below.
 
 ## Setup
 
@@ -54,19 +54,19 @@ After installing yt-dlp or ffmpeg with winget, open a new terminal so they are o
 **Notes for one video**, e.g. an older class:
 
 ```sh
-bun src/cli.js generate https://www.youtube.com/watch?v=34Hek3ybp7A
+bun src/cli.ts generate https://www.youtube.com/watch?v=34Hek3ybp7A
 ```
 
 **Notes for today's class.** This is what the daily schedule runs; it does nothing if the class isn't ready yet or is already done:
 
 ```sh
-bun src/cli.js run
+bun src/cli.ts run
 ```
 
 **Rebuild the PDFs** from notes already written, for example after changing the page design. No AI is used:
 
 ```sh
-bun src/cli.js render 34Hek3ybp7A
+bun src/cli.ts render 34Hek3ybp7A
 ```
 
 A full class takes about 15 minutes. Progress is printed and also saved to `logs/notes.log`.
@@ -93,7 +93,7 @@ Unregister-ScheduledTask -TaskName "AI Notes Generator" -Confirm:$false
 On a Linux server, use cron instead, with the server's timezone set to `Asia/Kolkata`:
 
 ```
-*/15 8-11 * * * cd /path/to/ai-notes-generator && bun src/cli.js run
+*/15 8-11 * * * cd /path/to/ai-notes-generator && bun src/cli.ts run
 ```
 
 ## How it works
@@ -142,7 +142,7 @@ Exit codes: `0` done or nothing to do · `1` error · `2` Claude usage limit rea
 ## Project layout
 
 ```
-src/        the CLI and pipeline steps
+src/        the CLI and pipeline steps (TypeScript, run directly by Bun; `bun run typecheck` checks types)
 prompts/    instructions Claude follows for writing and translating notes
 templates/  notebook page design (CSS) and the page layout script
 samples/    hand-made reference notes for episode 2209

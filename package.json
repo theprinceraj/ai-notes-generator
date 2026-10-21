@@ -5,10 +5,11 @@
   "description": "Generates handwritten-style PDF notes from YouTube classes",
   "type": "module",
   "bin": {
-    "notes": "src/cli.js"
+    "notes": "src/cli.ts"
   },
   "scripts": {
-    "notes": "bun src/cli.js"
+    "notes": "bun src/cli.ts",
+    "typecheck": "tsc"
   },
   "engines": {
     "bun": ">=1.2"
@@ -18,5 +19,9 @@
     "dotenv": "^17.2.0",
     "groq-sdk": "^1.0.0",
     "playwright": "1.64.1"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.3",
+    "typescript": "^7.0.2"
   }
 }

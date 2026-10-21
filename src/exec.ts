@@ -1,18 +1,28 @@
 import { spawn } from 'node:child_process';
 
+interface RunOptions {
+  input?: string;
+  cwd?: string;
+  timeoutMs?: number;
+}
+
 /**
  * Runs a program without a shell and resolves with its output.
  * Rejects with the tail of stderr when it exits non-zero.
  */
-export function run(cmd, args, { input, cwd, timeoutMs = 60 * 60 * 1000 } = {}) {
+export function run(
+  cmd: string,
+  args: string[],
+  { input, cwd, timeoutMs = 60 * 60 * 1000 }: RunOptions = {},
+): Promise<{ stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
     const child = spawn(cmd, args, { cwd, windowsHide: true });
-    const out = [];
-    const err = [];
+    const out: Buffer[] = [];
+    const err: Buffer[] = [];
     const timer = setTimeout(() => child.kill(), timeoutMs);
 
-    child.stdout.on('data', (d) => out.push(d));
-    child.stderr.on('data', (d) => err.push(d));
+    child.stdout.on('data', (d: Buffer) => out.push(d));
+    child.stderr.on('data', (d: Buffer) => err.push(d));
     child.on('error', (e) => {
       clearTimeout(timer);
       reject(new Error(`could not start ${cmd}: ${e.message}`));

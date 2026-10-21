@@ -24,10 +24,11 @@ Generates detailed, handwritten-style PDF notes from YouTube videos.
 
 ## Tech ecosystem
 
-- **JavaScript run with Bun** (the code also runs on Node.js), not Python.
+- **TypeScript run with Bun**, with no build step (Node.js 24+ can also run it), not Python.
+  - Only type syntax that can simply be stripped out is used (`erasableSyntaxOnly`).
 - The scheduler calls `bun.exe` directly, because the npm-installed `bun` command is a slow `.cmd` wrapper.
-- yt-dlp is used as a standalone binary called from Node.
-- Groq is called through its Node SDK.
+- yt-dlp is used as a standalone binary called from the CLI.
+- Groq is called through its JavaScript SDK.
 - PDFs are rendered with Playwright.
 
 ## Notes content

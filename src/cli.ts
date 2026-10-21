@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
 import { Command } from 'commander';
-import { UsageLimitError } from './claude.js';
-import { runDaily } from './daily.js';
-import { log } from './log.js';
-import { NotReadyError, processVideo, rerender } from './pipeline.js';
-import { parseVideoId } from './youtube.js';
+import { UsageLimitError } from './claude.ts';
+import { runDaily } from './daily.ts';
+import { log } from './log.ts';
+import { NotReadyError, processVideo, rerender } from './pipeline.ts';
+import { parseVideoId } from './youtube.ts';
 
 const program = new Command()
   .name('notes')
@@ -19,7 +19,7 @@ program
   .command('generate <video>')
   .description('make notes for one video, given its URL or id')
   .option('--no-groq', 'fail instead of using Groq when YouTube captions are missing')
-  .action(async (video, opts) => {
+  .action(async (video: string, opts: { groq: boolean }) => {
     const outDir = await processVideo(parseVideoId(video), { allowGroq: opts.groq });
     log(`notes saved in ${outDir}`);
   });
@@ -27,7 +27,7 @@ program
 program
   .command('render <video>')
   .description('rebuild the PDFs from notes already written for a video (no AI used)')
-  .action(async (video) => {
+  .action(async (video: string) => {
     const outDir = await rerender(parseVideoId(video));
     log(`PDFs saved in ${outDir}`);
   });
@@ -43,7 +43,7 @@ try {
     log(err.message);
     process.exitCode = 3;
   } else {
-    log(`error: ${err.stack ?? err}`);
+    log(`error: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`);
     process.exitCode = 1;
   }
 }

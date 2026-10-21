@@ -1,9 +1,9 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { config } from './config.js';
-import { log } from './log.js';
-import { describe, isDone, NotReadyError, processVideo } from './pipeline.js';
-import { listRecentStreams, videoInfo } from './youtube.js';
+import { config } from './config.ts';
+import { log } from './log.ts';
+import { describe, isDone, NotReadyError, processVideo } from './pipeline.ts';
+import { listRecentStreams, videoInfo } from './youtube.ts';
 
 const LOCK = join(config.dirs.work, 'run.lock');
 const STALE_LOCK_MS = 4 * 60 * 60 * 1000;
@@ -16,7 +16,7 @@ const todayInIndia = () => new Intl.DateTimeFormat('en-CA', { timeZone: config.t
  * makes its notes once the recording (and normally its captions) is available.
  * Exits quietly when there is nothing to do yet.
  */
-export async function runDaily() {
+export async function runDaily(): Promise<void> {
   if (!acquireLock()) {
     log('run: another run is still in progress; skipping');
     return;
@@ -24,10 +24,7 @@ export async function runDaily() {
   try {
     const today = todayInIndia();
     const entries = await listRecentStreams();
-    const episode = entries.find((e) => {
-      const m = e.title?.match(config.titlePattern);
-      return m && describe({ ...e, upload_date: '' }).date === today;
-    });
+    const episode = entries.find((e) => config.titlePattern.test(e.title ?? '') && describe(e).date === today);
     if (!episode) return log(`run: no class for ${today} on the channel yet`);
     if (isDone(episode.id)) return log(`run: ${today} is already done (${episode.id})`);
     if (episode.live_status && episode.live_status !== 'was_live' && episode.live_status !== 'not_live') {
@@ -52,7 +49,7 @@ export async function runDaily() {
 }
 
 // One run at a time: a run can take longer than the 15-minute schedule interval.
-function acquireLock() {
+function acquireLock(): boolean {
   mkdirSync(config.dirs.work, { recursive: true });
   if (existsSync(LOCK)) {
     const pid = Number(readFileSync(LOCK, 'utf8'));
@@ -63,11 +60,11 @@ function acquireLock() {
   return true;
 }
 
-function releaseLock() {
+function releaseLock(): void {
   rmSync(LOCK, { force: true });
 }
 
-function isRunning(pid) {
+function isRunning(pid: number): boolean {
   try {
     process.kill(pid, 0);
     return true;

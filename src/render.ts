@@ -1,14 +1,16 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium } from 'playwright';
-import { config, LANGUAGES } from './config.js';
+import { config, LANGUAGES } from './config.ts';
+import type { Language, VideoMeta } from './types.ts';
 
-const asset = (name) => readFileSync(join(config.dirs.templates, name), 'utf8');
+const asset = (name: string) => readFileSync(join(config.dirs.templates, name), 'utf8');
 
-const escapeHtml = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+const ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
+const escapeHtml = (s: string) => s.replace(/[&<>"]/g, (c) => ESCAPES[c]);
 
 /** A self-contained notebook page: styles and layout script are inlined, fonts and Mermaid come from CDNs. */
-export function buildPage(language, meta, fragment) {
+export function buildPage(language: Language, meta: VideoMeta, fragment: string): string {
   const L = LANGUAGES[language];
   const [y, m, d] = meta.date.split('-');
   const metaLine = [meta.episode ? `${L.meta} ${meta.episode}` : null, meta.teacher].filter(Boolean).join(' · ');
@@ -33,18 +35,18 @@ ${fragment}
 }
 
 /** Renders one PDF per language into outDir; also keeps the HTML next to it for the future website. */
-export async function renderPdfs(meta, fragments, outDir) {
+export async function renderPdfs(meta: VideoMeta, fragments: Partial<Record<Language, string>>, outDir: string): Promise<string[]> {
   mkdirSync(outDir, { recursive: true });
   const browser = await chromium.launch();
   try {
     const page = await browser.newPage();
-    const files = [];
-    for (const [language, fragment] of Object.entries(fragments)) {
+    const files: string[] = [];
+    for (const [language, fragment] of Object.entries(fragments) as [Language, string][]) {
       const html = buildPage(language, meta, fragment);
       const base = join(outDir, `notes-${language}`);
       writeFileSync(`${base}.html`, html);
       await page.setContent(html, { waitUntil: 'networkidle' });
-      await page.waitForFunction(() => window.__ready === true, null, { timeout: 60_000 });
+      await page.waitForFunction(() => (window as Window & { __ready?: boolean }).__ready === true, null, { timeout: 60_000 });
       await page.pdf({ path: `${base}.pdf`, preferCSSPageSize: true, printBackground: true });
       files.push(`${base}.pdf`);
     }

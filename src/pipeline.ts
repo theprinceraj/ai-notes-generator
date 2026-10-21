@@ -1,33 +1,36 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { config } from './config.js';
-import { listSheets, makeContactSheets } from './frames.js';
-import { log } from './log.js';
-import { segments, translateNotes, writeHindiNotes } from './notes.js';
-import { renderPdfs } from './render.js';
-import { fromGroq, fromVtt } from './transcript.js';
-import { downloadAudio, downloadCaptions, downloadVideo, videoInfo } from './youtube.js';
+import { config } from './config.ts';
+import { listSheets, makeContactSheets } from './frames.ts';
+import { log } from './log.ts';
+import { segments, translateNotes, writeHindiNotes } from './notes.ts';
+import { renderPdfs } from './render.ts';
+import { fromGroq, fromVtt } from './transcript.ts';
+import type { Language, Sheet, TranscriptLine, VideoInfo, VideoMeta } from './types.ts';
+import { downloadAudio, downloadCaptions, downloadVideo, videoInfo } from './youtube.ts';
 
 /** Captions are not on YouTube yet and Groq is not allowed for this run; try again later. */
 export class NotReadyError extends Error {}
 
-const TRANSLATIONS = ['english', 'hinglish'];
+const TRANSLATIONS = ['english', 'hinglish'] as const;
+type Fragments = Partial<Record<Language, string>>;
 
-const readJson = (file) => JSON.parse(readFileSync(file, 'utf8'));
-const writeJson = (file, data) => writeFileSync(file, JSON.stringify(data, null, 1));
-const pad = (n) => String(n).padStart(2, '0');
+const readJson = <T>(file: string): T => JSON.parse(readFileSync(file, 'utf8'));
+const writeJson = (file: string, data: unknown) => writeFileSync(file, JSON.stringify(data, null, 1));
+const pad = (n: number) => String(n).padStart(2, '0');
 
-export const workDir = (id) => join(config.dirs.work, id);
-export const isDone = (id) => existsSync(join(workDir(id), 'done.json'));
+export const workDir = (id: string) => join(config.dirs.work, id);
+export const isDone = (id: string) => existsSync(join(workDir(id), 'done.json'));
 
 /** Date (YYYY-MM-DD), episode and teacher of a class, from its title when it follows the channel's pattern. */
-export function describe(info) {
+export function describe(info: VideoInfo): VideoMeta {
   const m = info.title.match(config.titlePattern);
   const fromTitle = m && new Date(`${m[1]} ${m[2]} ${m[3]} 12:00 UTC`);
+  const uploaded = info.upload_date ?? '';
   const date = fromTitle && !Number.isNaN(fromTitle.getTime())
     ? fromTitle.toISOString().slice(0, 10)
-    : `${info.upload_date.slice(0, 4)}-${info.upload_date.slice(4, 6)}-${info.upload_date.slice(6, 8)}`;
-  const last = info.title.split('|').at(-1).trim();
+    : `${uploaded.slice(0, 4)}-${uploaded.slice(4, 6)}-${uploaded.slice(6, 8)}`;
+  const last = info.title.split('|').at(-1)?.trim() ?? '';
   return {
     id: info.id,
     title: info.title,
@@ -44,13 +47,13 @@ export function describe(info) {
  * work/<id>/ and is skipped when that result already exists, so an interrupted run
  * (usage limit, sleep, network) resumes where it stopped.
  */
-export async function processVideo(id, { allowGroq }) {
+export async function processVideo(id: string, { allowGroq }: { allowGroq: boolean }): Promise<string> {
   const dir = workDir(id);
   mkdirSync(dir, { recursive: true });
 
   const metaFile = join(dir, 'meta.json');
   if (!existsSync(metaFile)) writeJson(metaFile, describe(await videoInfo(id)));
-  const meta = readJson(metaFile);
+  const meta = readJson<VideoMeta>(metaFile);
   log(`${id}: ${meta.title}`);
 
   const transcript = await getTranscript(id, dir, allowGroq);
@@ -59,7 +62,7 @@ export async function processVideo(id, { allowGroq }) {
   const notesDir = join(dir, 'notes');
   mkdirSync(notesDir, { recursive: true });
   const parts = segments(transcript, sheets);
-  const hindi = [];
+  const hindi: string[] = [];
   for (const [i, part] of parts.entries()) {
     const file = join(notesDir, `hindi-${pad(i + 1)}.html`);
     if (!existsSync(file)) {
@@ -69,9 +72,9 @@ export async function processVideo(id, { allowGroq }) {
     hindi.push(readFileSync(file, 'utf8'));
   }
 
-  const fragments = { hindi: hindi.join('\n\n') };
+  const fragments: Fragments = { hindi: hindi.join('\n\n') };
   for (const language of TRANSLATIONS) {
-    const translated = [];
+    const translated: string[] = [];
     for (const [i, fragment] of hindi.entries()) {
       const file = join(notesDir, `${language}-${pad(i + 1)}.html`);
       if (!existsSync(file)) {
@@ -89,21 +92,21 @@ export async function processVideo(id, { allowGroq }) {
 }
 
 /** Re-renders the PDFs from notes already written for a video, without using Claude. */
-export async function rerender(id) {
+export async function rerender(id: string): Promise<string> {
   const dir = workDir(id);
   const notesDir = join(dir, 'notes');
   if (!existsSync(notesDir)) throw new Error(`no notes for ${id} yet; run "notes generate" first`);
-  const meta = readJson(join(dir, 'meta.json'));
+  const meta = readJson<VideoMeta>(join(dir, 'meta.json'));
   const files = readdirSync(notesDir).sort();
-  const fragments = {};
-  for (const language of ['hindi', ...TRANSLATIONS]) {
+  const fragments: Fragments = {};
+  for (const language of ['hindi', ...TRANSLATIONS] as const) {
     const own = files.filter((f) => f.startsWith(`${language}-`));
     if (own.length) fragments[language] = own.map((f) => readFileSync(join(notesDir, f), 'utf8')).join('\n\n');
   }
   return render(id, meta, fragments);
 }
 
-async function render(id, meta, fragments) {
+async function render(id: string, meta: VideoMeta, fragments: Fragments): Promise<string> {
   const outDir = join(config.dirs.output, `${meta.date}${meta.episode ? `_ep${meta.episode}` : `_${id}`}`);
   log(`${id}: rendering PDFs`);
   const files = await renderPdfs(meta, fragments, outDir);
@@ -111,13 +114,13 @@ async function render(id, meta, fragments) {
   return outDir;
 }
 
-async function getTranscript(id, dir, allowGroq) {
+async function getTranscript(id: string, dir: string, allowGroq: boolean): Promise<TranscriptLine[]> {
   const file = join(dir, 'transcript.json');
-  if (existsSync(file)) return readJson(file);
+  if (existsSync(file)) return readJson<TranscriptLine[]>(file);
 
   log(`${id}: fetching YouTube captions`);
   const vtt = await downloadCaptions(id, dir);
-  let transcript;
+  let transcript: TranscriptLine[];
   if (vtt) {
     transcript = fromVtt(readFileSync(vtt, 'utf8'));
   } else if (allowGroq) {
@@ -133,7 +136,7 @@ async function getTranscript(id, dir, allowGroq) {
   return transcript;
 }
 
-async function getSheets(id, dir) {
+async function getSheets(id: string, dir: string): Promise<Sheet[]> {
   const sheetsDir = join(dir, 'sheets');
   if (existsSync(sheetsDir) && listSheets(sheetsDir).length) return listSheets(sheetsDir);
 
