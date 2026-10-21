@@ -1,0 +1,178 @@
+@page { size: A4; margin: 0; }
+
+:root {
+  --rule: 30px;
+  --paper: #fdfbf3;
+  --line: #c3d3ea;
+  --margin: #e58a8c;
+  --ink: #1f3f94;
+  --ink-dark: #1c1c1c;
+  --red: #c62828;
+  --green: #2e7d32;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+
+body {
+  font-family: 'Kalam', cursive;
+  font-size: 19px;
+  line-height: var(--rule);
+  color: var(--ink);
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+@media screen {
+  body { background: #6b6b6b; padding: 24px 0; }
+  .page { margin: 0 auto 24px; box-shadow: 0 4px 18px rgba(0, 0, 0, .35); }
+}
+
+/* One A4 sheet of ruled notebook paper with a double red margin line */
+.page {
+  position: relative;
+  width: 210mm;
+  height: 297mm;
+  overflow: hidden;
+  break-after: page;
+  padding: calc(var(--rule) * 2) 14mm 0 32mm;
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(to right,
+      transparent 26mm, var(--margin) 26mm, var(--margin) calc(26mm + 1.5px),
+      transparent calc(26mm + 1.5px), transparent 27mm,
+      var(--margin) 27mm, var(--margin) calc(27mm + 1.5px), transparent calc(27mm + 1.5px)),
+    repeating-linear-gradient(to bottom,
+      transparent 0, transparent calc(var(--rule) - 1px),
+      var(--line) calc(var(--rule) - 1px), var(--line) var(--rule));
+  background-repeat: no-repeat;
+  background-size: 100% 100%, 100% calc(100% - var(--rule) * 2);
+  background-position: 0 0, 0 calc(var(--rule) * 2 - 5px);
+  display: flex;
+  flex-direction: column;
+}
+
+/* No page break after the last sheet, otherwise the PDF ends with a blank page */
+.page:last-of-type { break-after: auto; }
+
+/* Writable area of a sheet; notes.js fills it block by block */
+.body { flex: 1; min-height: 0; margin-bottom: var(--rule); }
+
+/* Source content before pagination */
+#content { width: calc(210mm - 46mm); }
+
+.pg {
+  position: absolute;
+  top: 12px;
+  right: 14mm;
+  font-size: 14px;
+  line-height: 24px;
+  color: #6a6a6a;
+  border: 1px solid #a9b4c4;
+  padding: 0 10px;
+}
+
+.meta { margin: 0; text-align: center; font-size: 15px; color: #7a7a7a; }
+
+h1 {
+  margin: 0;
+  font-size: 30px;
+  line-height: calc(var(--rule) * 2);
+  font-weight: 700;
+  text-align: center;
+  color: var(--red);
+  text-decoration: underline double;
+  text-underline-offset: 8px;
+}
+
+h2 {
+  margin: var(--rule) 0 0;
+  font-size: 24px;
+  line-height: var(--rule);
+  font-weight: 700;
+  color: var(--ink-dark);
+  text-decoration: underline wavy var(--red) 1.5px;
+  text-underline-offset: 2px;
+}
+
+p { margin: 0; }
+.def { color: var(--ink-dark); font-style: italic; }
+
+ul { margin: 0; padding-left: 26px; list-style: none; }
+li { position: relative; }
+li::before { content: '→'; position: absolute; left: -24px; color: var(--red); }
+li li::before { content: '•'; left: -16px; color: var(--ink); }
+
+b { color: var(--ink-dark); font-weight: 700; }
+
+/* Highlighter stroke with ragged ends */
+mark {
+  color: inherit;
+  padding: 0 4px;
+  border-radius: 4px 8px 5px 9px;
+  background: linear-gradient(100deg,
+    rgba(255, 226, 0, 0) 1%, rgba(255, 226, 0, .65) 4%,
+    rgba(255, 226, 0, .5) 50%, rgba(255, 226, 0, .7) 95%, rgba(255, 226, 0, 0) 99%);
+}
+
+.num { color: var(--red); font-weight: 700; }
+.circ { color: var(--red); font-weight: 700; border: 1.6px solid var(--red); border-radius: 50% / 45%; padding: 0 6px; }
+.strike { color: var(--red); text-decoration: line-through 2px; }
+
+/* Sticky note: takes a whole number of ruled lines so text below stays on the lines */
+.sticky {
+  position: relative;
+  margin: calc(var(--rule) / 2) 8mm calc(var(--rule) / 2) 2mm;
+  padding: calc(var(--rule) / 2) 16px;
+  background: #fff59d;
+  color: var(--ink-dark);
+  transform: rotate(-0.7deg);
+  box-shadow: 2px 3px 7px rgba(0, 0, 0, .18);
+}
+.sticky.green { background: #d7f2c8; transform: rotate(0.6deg); }
+.sticky::before {
+  content: '';
+  position: absolute;
+  top: -9px;
+  left: 45%;
+  width: 70px;
+  height: 18px;
+  background: rgba(255, 255, 255, .55);
+  transform: rotate(-3deg);
+}
+
+/* Note written in the left margin */
+/* Note written in the left margin, beside the heading that contains it */
+h2 { position: relative; }
+.side {
+  position: absolute;
+  left: -30mm;
+  top: 2px;
+  width: 23mm;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 18px;
+  color: var(--red);
+  text-decoration: none;
+  transform: rotate(-6deg);
+  text-align: center;
+}
+
+/* Divider between the two parts of a class */
+h1.part { margin-top: var(--rule); font-size: 26px; color: var(--ink); }
+
+.diagram { display: flex; justify-content: center; align-items: center; overflow: hidden; }
+.diagram svg { max-width: 100%; max-height: 100%; }
+
+
+table { border-collapse: collapse; margin: 0 auto; }
+th, td {
+  height: var(--rule);
+  padding: 0 12px;
+  line-height: calc(var(--rule) - 2px);
+  font-size: 17px;
+  white-space: nowrap;
+  border: 1.5px solid var(--ink);
+  text-align: left;
+}
+th { color: var(--red); }

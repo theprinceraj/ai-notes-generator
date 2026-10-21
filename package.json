@@ -1,0 +1,22 @@
+{
+  "name": "ai-notes-generator",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Generates handwritten-style PDF notes from YouTube classes",
+  "type": "module",
+  "bin": {
+    "notes": "src/cli.js"
+  },
+  "scripts": {
+    "notes": "bun src/cli.js"
+  },
+  "engines": {
+    "bun": ">=1.2"
+  },
+  "dependencies": {
+    "commander": "^14.0.0",
+    "dotenv": "^17.2.0",
+    "groq-sdk": "^1.0.0",
+    "playwright": "1.64.1"
+  }
+}
